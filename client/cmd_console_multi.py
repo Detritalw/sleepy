@@ -81,7 +81,7 @@ def main():
 
     print('\n---\nSelect status:')
 
-    stlst = loadjson(f'{server}/status_list')
+    stlst = loadjson(f'{server}/status_list').get('status_list', [])
     for n in stlst:
         print(f'{n["id"]} - {n["name"]} - {n["desc"]}')
 
@@ -94,7 +94,7 @@ def main():
         "set_to": 0
     }
     '''
-    ret = loadjson(f'{server}/set/{SECRET}/{st}')
+    ret = loadjson(f'{server}/set?secret={SECRET}&status={st}')
     try:
         print(
             f'success: [{ret["success"]}], code: [{ret["code"]}], set_to: [{ret["set_to"]}]')

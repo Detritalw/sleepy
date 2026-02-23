@@ -3,14 +3,23 @@
 # ========== 读取配置文件 ==========
 SCRIPT_DIR=${0%/*}
 CONFIG_FILE="${SCRIPT_DIR}/config.cfg"
-source "$CONFIG_FILE"
+. "$CONFIG_FILE"
+
+# 清理变量中的换行符
+SECRET=$(echo "$SECRET" | tr -d '\r\n')
+DEVICE_ID=$(echo "$DEVICE_ID" | tr -d '\r\n')
+URL=$(echo "$URL" | tr -d '\r\n')
+LOG_NAME=$(echo "$LOG_NAME" | tr -d '\r\n')
+DEVICE_NAME=$(echo "$DEVICE_NAME" | tr -d '\r\n')
+CACHE=$(echo "$CACHE" | tr -d '\r\n')
+
 # ========== 日志系统 ==========
 LOG_PATH="${SCRIPT_DIR}/${LOG_NAME}"
 log() {
   message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
   echo "$message" >> "$LOG_PATH"
 }
-
+sleepy=0
 # ========== 判断是否为游戏 ==========
 is_game() {
   pkg="$1"
@@ -68,19 +77,30 @@ send_status() {
   package_name="$1"
   app_name=$(get_app_name "$package_name")
   
-  battery_level=$(dumpsys battery | grep 'level:' | awk '{print $2}')
-  res_up="$app_name[${battery_level}%]"
+  battery_level=$(dumpsys battery | sed -n 's/.*level: \([0-9]*\).*/\1/p')
+  dumpsys_charging="$(dumpsys deviceidle get charging)"
+  
+  if [ "$dumpsys_charging" = "true" ]; then
+    res_up="$app_name[${battery_level}%]⚡"
+  else
+    res_up="$app_name[${battery_level}%]🔋"
+  fi
+
   log "$res_up"
   
-  http_code=$(curl -G -s --connect-timeout 35 --max-time 100 -w "%{http_code}" -o /tmp/curl_body "$URL" \
-    --data-urlencode "secret=${SECRET}" \
-    --data-urlencode "id=0" \
-    --data-urlencode "show_name=${device_model}" \
-    --data-urlencode "using=true" \
-    --data-urlencode "app_name=$res_up")
-    
+  # send_status调试用
+  # log "尝试请求URL: $URL"
+  # log "请求数据: {\"secret\": \"${SECRET}\", \"id\": \"${device_id}\", \"show_name\": \"${device_model}\", \"using\": ${using}, \"app_name\": \"$res_up\"}"
+
+  http_code=$(curl -s --connect-timeout 35 --max-time 100 -w "%{http_code}" -o ./curl_body "$URL" \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"secret": "'"${SECRET}"'", "id": "'"${DEVICE_ID}"'", "show_name": "'"${device_model}"'", "using": '"${using}"', "app_name": "'"$res_up"'"}')
+
+  log "HTTP状态码: $http_code"
+
   if [ "$http_code" -ne 200 ]; then
-    log "警告：请求失败，状态码 $http_code，响应内容：$(cat /tmp/curl_body)"
+    log "警告：请求失败，状态码 $http_code，响应内容：$(cat ./curl_body)"
   fi
 }
 
@@ -94,22 +114,45 @@ device_model=$(getprop ro.product.model)
 android_version=$(getprop ro.build.version.release)
 log "设备信息: ${device_model}, Android ${android_version}，等待一分钟"
 
-# 如有需要，可在此处覆盖设备显示名称
-#device_model="OnePlus ACE3"
+# 覆盖设备显示名称
+if [ -n "${DEVICE_NAME}" ]; then
+  device_model="${DEVICE_NAME}"
+fi
 
 sleep 60
 log "开！"
 
 # ========== 核心逻辑 ==========
 while true; do
-  # 获取当前焦点窗口信息
-  CURRENT_FOCUS=$(dumpsys window | grep mCurrentFocus)
-  PACKAGE_NAME=$(echo "$CURRENT_FOCUS" | awk -F '[ /}]' '{print $5}' | tr -d '[:space:]')
+  isLock=$(dumpsys window policy | sed -n 's/.*showing=\([a-z]*\).*/\1/p')
+  echo "isLock: $isLock"
+  if [ "$isLock" = "true" ]; then
+    log "锁屏了"
+    sleepy=$((sleepy + 1))
+    log "锁屏计数器: $sleepy"
+    PACKAGE_NAME="NotificationShade"
+      # 休眠检测
+      if [ "$sleepy" -ge 60 ]; then
+         using="false"
+         log "睡死了"
+         send_status "$PACKAGE_NAME"
+         sleepy=0
+      else
+        using="true"
+      fi
+  else
+    sleepy=0
+    using="true"
+    CURRENT_FOCUS=$(dumpsys activity activities 2>/dev/null | grep -m 1 'ResumedActivity')
+    PACKAGE_NAME=$(echo "$CURRENT_FOCUS" | sed -E 's/.*u0 ([^/]+).*/\1/')
+  fi
 
-  if [ "$PACKAGE_NAME" != "$LAST_PACKAGE" ] && [ -n "$PACKAGE_NAME" ]; then
-    log "状态变化: ${LAST_PACKAGE:-none} → ${PACKAGE_NAME:-none}"
+  # 常规状态更新
+  if [ -n "$PACKAGE_NAME" ] && [ "$PACKAGE_NAME" != "$LAST_PACKAGE" ]; then
+    log "状态变化: ${LAST_PACKAGE:-none} → ${PACKAGE_NAME}"
     send_status "$PACKAGE_NAME"
     LAST_PACKAGE="$PACKAGE_NAME"
   fi
+  
   is_game "$PACKAGE_NAME"
 done

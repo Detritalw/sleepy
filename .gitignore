@@ -1,12 +1,22 @@
+# Python Cache
 __pycache__/
+
+# Config
+data/
+config.yaml
+config.toml
+.env
+
+# Data
+*.db
 data.json
-data.*.json
-config.jsonc
-config.*.jsonc
+
+# For Local / venv
 *.test.*
 *.local.*
 .venv/
-client/Win_Simple/build/
-client/Win_Simple/*.spec
-client/Win_Simple/dist/config.ini
-client/Win_Simple/config.ini
+.venv_legacy/
+
+# Others
+.vscode/launch.json
+

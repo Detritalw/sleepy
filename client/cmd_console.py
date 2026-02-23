@@ -79,12 +79,12 @@ def main():
 
     print('\n---\nSelect status:')
 
-    stlst = loadjson(f'{SERVER}/status_list')
+    stlst = loadjson(f'{SERVER}/status_list').get('status_list', [])
     for n in stlst:
         print(f'{n["id"]} - {n["name"]} - {n["desc"]}')
 
     st = input('\n> ')
-    ret = loadjson(f'{SERVER}/set/{SECRET}/{st}')
+    ret = loadjson(f'{SERVER}/set?secret={SECRET}&status={st}')
     try:
         print(f'success: [{ret["success"]}], code: [{ret["code"]}], set_to: [{ret["set_to"]}]')
     except:

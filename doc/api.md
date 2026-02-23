@@ -1,146 +1,126 @@
 # API
 
-1. [只读接口](#read-only)
+0. [鉴权说明](#一些说明)
+1. [特殊接口](#special)
 2. [Status 接口](#status)
-3. [Device status 接口](#device)
-4. [Storage 接口](#storage)
+3. [Device 接口](#device)
 
-## Read-only
+## 一些说明
 
-[Back to # api](#api)
+### 关于错误
 
-|                      | 路径           | 方法  | 作用             |
-| -------------------- | -------------- | ----- | ---------------- |
-|                      | `/`            | `GET` | 显示主页         |
-| [Jump](#query)       | `/query`       | `GET` | 获取状态         |
-| [Jump](#status-list) | `/status_list` | `GET` | 获取可用状态列表 |
-| [Jump](#metrics)     | `/metrics`     | `GET` | 获取统计信息     |
-
-### query
-
-[Back to ## read-only](#read-only)
-
-> `/query`
-
-获取当前的状态
-
-* Method: GET
-* 无需鉴权
-
-#### Response
+所有 API 返回的错误都会通过 `utils.APIUnsuccessful` 格式化:
 
 ```jsonc
 {
-    "time": "2024-12-28 00:21:24", // 请求时服务端时间
-    "success": true, // 请求是否成功
-    "status": 0, // 获取到的状态码
-    "info": { // 对应状态码的信息
-        "name": "活着", // 状态名称
-        "desc": "目前在线，可以通过任何可用的联系方式联系本人。", // 状态描述
-        "color": "awake"// 状态颜色, 对应 static/style.css 中的 .sleeping .awake 等类
-    },
-    "device": { // 设备列表
-        "device-1": { // 标识符，唯一
-            "show_name": "MyDevice1", // 前台显示名称
-            "using": "false", // 是否正在使用
-            "app_name": "bilibili" // 应用名 (如 using == false 则不使用)
-        }
-    },
-    "last_updated": "2024-12-20 23:51:34", // 信息上次更新的时间
-    "refresh": 5000, // 刷新时间 (ms)
-    "device_status_slice": 20 // 设备状态截取文字数
+  "success": false, // 表示请求未成功
+  "code": 500, // 数字 HTTP Code (如 404, 500, ...), 同时也是响应的 HTTP 状态
+  "details": "Internal Server Error", // HTTP Code 描述 (如 Not Found, Internal Server Error, ...)
+  "message": "..." // 附带的错误详情
 }
 ```
 
-> 其中日期/时间的时区默认为 `Asia/Shanghai`, 可在 config.jsonc 中修改
+<!--
+{
+  "success": false,
+  "code": 0,
+  "details": "",
+  "message": ""
+}
+-->
 
-### status-list
+### 关于鉴权
 
-[Back to ## read-only](#read-only)
+> 在接口列表中, 标记为斜体的即为需要鉴权
 
-> `/status_list`
+任何标记了需要鉴权的接口，都需要用下面三种方式的一种传入 **与服务端一致** 的 `secret` *(优先级从上到下)*:
 
-获取可用状态的列表
-
-* Method: GET
-* 无需鉴权
-* Alias: `/get/status_list` *(兼容旧版本)*
-
-#### Response
-
-```jsonc
-[
-    {
-        "id": 0, // 索引，取决于配置文件中的有无
-        "name": "活着", // 状态名称
-        "desc": "目前在线，可以通过任何可用的联系方式联系本人。", // 状态描述
-        "color": "awake" // 状态颜色, 对应 static/style.css 中的 .sleeping .awake 等类
-    }, 
-    {
-        "id": 1, 
-        "name": "似了", 
-        "desc": "睡似了或其他原因不在线，紧急情况请使用电话联系。", 
-        "color": "sleeping"
-    }, 
-    // 以此类推
-]
-```
-
-> 就是返回 `config.jsonc` 中的 `status_list` 列表
-
-### metrics
-
-[Back to ## read-only](#read-only)
-
-> `/metrics`
-
-获取统计信息
-
-* Method: GET
-* 无需鉴权
-
-> [!TIP]
-> 本接口较特殊: 如服务器关闭了统计 *(`config.jsonc` 中的 `metrics` 为 `false`)*, 则 **`/metrics` 路由将不会被创建**, 体现为访问显示 404 页面而不是返回结果 <br/>
-> ~~*我也不知道自己怎么想的*~~
-
-> 在需要鉴权的路由中，鉴权通过后才会计入统计
-
-> [!WARNING]
-> 目前 data.py 逻辑可能存在问题，会导致 metrics 数据无故被清空，原因未知
-
-#### Response
+1. 请求体 *(`Body`)* 的 `secret` *(仅适用于 POST 请求)*
 
 ```jsonc
 {
-    "time": "2025-01-22 08:40:48.564728+08:00", // 服务端时间
-    "timezone": "Asia/Shanghai", // 时区
-    "today_is": "2025-1-22", // 今日日期
-    "month_is": "2025-1", // 今日月份
-    "year_is": "2025", // 今日年份
-    "today": { // 今天的数据
-        "/device/set": 18,
-        "/": 2,
-        "/style.css": 1,
-        "/query": 2
-    }, 
-    "month": { // 今月的数据
-        "/device/set": 18,
-        "/": 2,
-        "/style.css": 1,
-        "/query": 2
-    }, 
-    "year": { // 今年的数据
-        "/device/set": 18,
-        "/": 2,
-        "/style.css": 1,
-        "/query": 2
-    }, 
-    "total": { // 总统计数据，不清除
-        "/device/set": 18,
-        "/": 2,
-        "/style.css": 1,
-        "/query": 2
-    }
+  "secret": "MySecretCannotGuess",
+  // ...
+}
+```
+
+2. 请求参数 *(`Param`)* 的 `secret`
+
+```url
+?secret=MySecretCannotGuess
+```
+
+3. 请求头 *(`Header`)* 的 `Sleepy-Secret`
+
+```http
+Sleepy-Secret: MySecretCannotGuess
+```
+
+4. 请求头 *(`Header`)* 的 `Authorization` *(需要在 secret 前加 `Bearer `)*
+
+```http
+Authorization: Bearer MySecretCannotGuess
+```
+
+5. Cookie *(`Cookie`)* 的 `sleepy-secret`
+
+```
+sleepy-secret=MySecretCannotGuess
+```
+
+> 服务端的 `secret` 即为在环境变量中配置的 `SLEEPY_SECRET`
+
+如 `secret` 错误，则会返回:
+
+```jsonc
+// 401 Unauthorized
+{
+  "success": false,
+  "code": 401,
+  "details": "Unauthorized",
+  "message": "Wrong Secret"
+}
+```
+
+## Special
+
+[Back to # api](#api)
+
+|                  | 路径        | 方法  | 作用           |
+| ---------------- | ----------- | ----- | -------------- |
+| [Jump](#apimeta) | `/api/meta` | `GET` | 获取站点元数据 |
+
+### /api/meta
+
+> `/api/meta`
+
+获取站点的元数据 (页面设置, 版本等)
+
+#### Response
+
+```jsonc
+// 200 OK
+{
+  "success": true,
+  "version": [5, 0, 0], // 版本号
+  "version_str": "5.0-dev-20250629", // 也是版本号
+  "timezone": "Asia/Shanghai", // 服务器时区 (用于 metrics)
+  "page": { // 页面设置
+    "background": "https://imgapi.siiway.top/image", // 背景
+    "desc": "Development Site of Sleepy Project", // 描述
+    "favicon": "/static/favicon.ico", // 图标
+    "name": "Fake_wyf9", // 名字
+    "theme": "default", // 默认主题
+    "title": "SleepyDev" // 页面标题
+  },
+  "status": { // 状态设置
+    "device_slice": 40, // 设备状态截取文字数
+    "not_using": "关掉了~", // 未在使用提示覆盖
+    "refresh_interval": 5000, // 刷新间隔 (ms)
+    "sorted": true, // 是否启用排序
+    "using_first": true // 是否优先显示使用中设备
+  },
+  "metrics": true // 是否已启用 metrics
 }
 ```
 
@@ -148,50 +128,222 @@
 
 [Back to # api](#api)
 
-|                     | 路径                                   | 方法  | 作用     |
-| ------------------- | -------------------------------------- | ----- | -------- |
-| [Jump](#status-set) | `/set?secret=<secret>&status=<status>` | `GET` | 设置状态 |
-|                     | `/set/<secret>/<status>`               | `GET` | -        |
+|                         | 路径                              | 方法  | 作用             |
+| ----------------------- | --------------------------------- | ----- | ---------------- |
+| [Jump](#apistatusquery) | `/api/status/query`               | `GET` | 获取状态         |
+| [Jump](#apistatusset)   | `/api/status/set?status=<status>` | `GET` | 设置状态         |
+| [Jump](#apistatuslist)  | `/api/status/list`                | `GET` | 获取可用状态列表 |
+| [Jump](#apimetrics)     | `/api/metrics`                    | `GET` | 获取统计信息     |
 
-
-### status-set
+### /api/status/query
 
 [Back to ## status](#status)
 
-> `/set?secret=<secret>&status=<status>`
+> `/api/status/query`
+
+获取当前的状态
+
+* Method: GET
+* 无需鉴权
+
+#### Params
+
+- `meta`: 是否同时请求元数据 *(bool)*
+- `metrics`: 是否同时请求统计数据 *(bool)*
+
+#### Response
+
+```jsonc
+// 200 OK
+{
+  "success": true, // 请求是否成功
+  "time": 1751697213.46574, // 服务端时间 (UTC 时间戳)
+  "status": {
+    "id": 0, // 状态数字 id
+    "name": "活着", // 状态名称
+    "desc": "目前在线，可以通过任何可用的联系方式联系本人。", // 状态描述
+    "color": "awake" // 状态颜色, 对应 static/style.css 中的 .sleeping .awake 等类
+  },
+  "device": { // 设备状态列表
+    "test1": { // 设备 id
+      "show_name": "Test 1", // 设备显示名称
+      "status": null, // 状态文本 (之前的 app_name, 可为 null)
+      "using": true, // 是否正在使用 (可为 null)
+      "fields": { // 其他状态字段
+        "online": "true"
+      },
+      "last_updated": 1751668348.684424 // 本设备最后更新时间
+    },
+    "test2": {
+      "show_name": "Test 2",
+      "status": "关掉了~",
+      "using": false,
+      "fields": {},
+      "last_updated": 1751668359.072248
+    }
+  },
+  "meta": { // 元数据 (仅在指定 ?meta=true 时包含)
+    "metrics": true,
+    "page": {
+      "background": "https://imgapi.siiway.top/image",
+      "desc": "Development Site of Sleepy Project",
+      "favicon": "/static/favicon.ico",
+      "name": "Fake_wyf9",
+      "theme": "default",
+      "title": "SleepyDev"
+    },
+    "status": {
+      "device_slice": 40,
+      "not_using": "关掉了~",
+      "refresh_interval": 5000,
+      "sorted": true,
+      "using_first": true
+    },
+    "timezone": "Asia/Shanghai",
+    "version": "5.0-dev-20250629"
+  },
+  "metrics": { // 统计数据 (仅在指定 ?metrics=true 时包含)
+    "enabled": true,
+    "time": 1751782809.226177,
+    "time_local": "2025-07-06 14:20:09",
+    "timezone": "Asia/Shanghai",
+    "daily": {},
+    "weekly": {},
+    "monthly": {},
+    "yearly": {},
+    "total": {}
+  },
+  "last_updated": 1751668399.061304 // 所有数据最后更新时间
+}
+```
+
+### /api/status/set
+
+[Back to ## status](#status)
+
+> `/api/status/set?status=<status>`
 
 设置当前状态
 
 * Method: GET
-* Alias: `/set/<secret>/<status>`
+* **需要鉴权**
 
 #### Params
 
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
 - `<status>`: 状态码 *(`int`)*
 
 #### Response
 
 ```jsonc
-// 成功
+// 200 OK | 成功
 {
-    "success": true, // 请求是否成功
-    "code": "OK", // 返回代码
-    "set_to": 0 // 设置到的状态码
+  "success": true, // 请求是否成功
+  "set_to": 0 // 设置到的状态码
 }
 
-// 失败 - 密钥错误
+// 400 Bad Request | 失败 - 请求无效
 {
-    "success": false, // 请求是否成功
-    "code": "not authorized", // 返回代码
-    "message": "invaild secret" // 详细信息
+  "success": false,
+  "code": 400,
+  "details": "Bad Request",
+  "message": "argument 'status' must be int"
 }
+```
 
-// 失败 - 请求无效
+### /api/status/list
+
+[Back to ## status](#status)
+
+> `/api/status/list`
+
+获取可用状态的列表
+
+* Method: GET
+* 无需鉴权
+
+#### Response
+
+```jsonc
+// 200 OK
 {
-    "success": false, // 请求是否成功
-    "code": "bad request", // 返回代码
-    "message": "argument 'status' must be a number" // 详细信息
+  "success": true,
+  "status_list": [
+    {
+      "id": 0, // 索引 (从 0 开始)
+      "name": "活着", // 状态名称
+      "desc": "目前在线，可以通过任何可用的联系方式联系本人。", // 状态描述
+      "color": "awake" // 状态颜色, 对应 static/style.css 中的 .sleeping .awake 等类
+    }, 
+    {
+      "id": 1, 
+      "name": "似了", 
+      "desc": "睡似了或其他原因不在线，紧急情况请使用电话联系。", 
+      "color": "sleeping"
+    }, 
+    // 以此类推
+  ]
+}
+```
+
+### /api/metrics
+
+[Back to ## status](#status)
+
+> `/api/metrics`
+
+获取统计信息
+
+* Method: GET
+* 无需鉴权
+
+#### Response
+
+```jsonc
+// 200 OK (功能已启用)
+{
+  "success": true,
+  "time": 1751790785.572329, // 服务端时间
+  "enabled": true, // 是否启用 metrics 功能
+  "time_local": "2025-07-06 16:33:05", // 服务端时间字符串 (基于设置的时区)
+  "timezone": "Asia/Shanghai", // 时区
+  "daily": { // 今天的数据
+    "/device/set": 18,
+    "/": 2,
+    "/style.css": 1,
+    "/query": 2
+  },
+  "weekly": { // 本周的数据
+    "/device/set": 18,
+    "/": 2,
+    "/style.css": 1,
+    "/query": 2
+  },
+  "month": { // 本月的数据
+    "/device/set": 18,
+    "/": 2,
+    "/style.css": 1,
+    "/query": 2
+  },
+  "year": { // 今年的数据
+    "/device/set": 18,
+    "/": 2,
+    "/style.css": 1,
+    "/query": 2
+  },
+  "total": { // 总统计数据，不清除
+    "/device/set": 18,
+    "/": 2,
+    "/style.css": 1,
+    "/query": 2
+  }
+}
+```
+
+```jsonc
+// 200 OK (功能已禁用)
+{
+  "success": true,
+  "enabled": false // 是否启用 metrics 功能
 }
 ```
 
@@ -199,263 +351,155 @@
 
 [Back to # api](#api)
 
-|                              | 路径                                                                                          | 方法   | 作用                          |
-| ---------------------------- | --------------------------------------------------------------------------------------------- | ------ | ----------------------------- |
-| [Jump](#device-set)          | `/device/set`                                                                                 | `POST` | 设置单个设备的状态 (打开应用) |
-|                              | `/device/set?secret=<secret>&id=<id>&show_name=<show_name>&using=<using>&app_name=<app_name>` | `GET`  | -                             |
-| [Jump](#device-remove)       | `/device/remove?secret=<secret>&name=<device_name>`                                           | `GET`  | 移除单个设备的状态            |
-| [Jump](#device-clear)        | `/device/clear?secret=<secret>`                                                               | `GET`  | 清除所有设备的状态            |
-| [Jump](#device-private-mode) | `/device/private_mode?secret=<secret>&private=<isprivate>`                                    | `GET`  | 设置隐私模式                  |
+|                           | 路径                                                                          | 方法   | 作用                          |
+| ------------------------- | ----------------------------------------------------------------------------- | ------ | ----------------------------- |
+| [Jump](#apideviceset)     | `/api/device/set`                                                             | `POST` | 设置单个设备的状态 (打开应用) |
+|                           | `/api/device/set?id=<id>&show_name=<show_name>&using=<using>&status=<status>` | `GET`  | -                             |
+| [Jump](#apideviceremove)  | `/api/device/remove?name=<device_name>`                                       | `GET`  | 移除单个设备的状态            |
+| [Jump](#apideviceclear)   | `/api/device/clear`                                                           | `GET`  | 清除所有设备的状态            |
+| [Jump](#apideviceprivate) | `/api/device/private?private=<isprivate>`                                     | `GET`  | 设置隐私模式                  |
 
-### device-set
+### /api/device/set
 
 [Back to ## device](#device)
 
-> `/device/set`
+> `/api/device/set`
 
 设置单个设备的状态
 
 * Method: GET / POST
+* **需要鉴权**
 
 #### Params (GET)
 
 > [!WARNING]
 > 使用 url params 传递参数在某些情况下 *(如内容包含特殊符号)* 可能导致非预期行为, 此处更建议使用 POST
 
-> `/device/set?secret=<secret>&id=<id>&show_name=<show_name>&using=<using>&app_name=<app_name>`
+> `/api/device/set?id=<id>&show_name=<show_name>&using=<using>&status=<status>`
 
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
 - `<id>`: 设备标识符
 - `<show_name>`: 显示名称
 - `<using>`: 是否正在使用
-- `<app_name>`: 正在使用应用的名称
+- `<status>`: 设备状态文本 *(之前为正在使用的应用名称, 即 `app_name`)*
 
 #### Body (POST)
 
-> `/device/set`
+> `/api/device/set`
 
 ```jsonc
 {
-    "secret": "MySecretCannotGuess", // 密钥
-    "id": "device-1", // 设备标识符
-    "show_name": "MyDevice1", // 显示名称
-    "using": true, // 是否正在使用
-    "app_name": "VSCode" // 正在使用应用的名称
+  "id": "device-1", // 设备标识符
+  "show_name": "MyDevice1", // 显示名称
+  "using": true, // 是否正在使用
+  "status": "VSCode" // 正在使用应用的名称
 }
 ```
 
 #### Response
 
 ```jsonc
-// 成功
+// 200 OK | 成功
 {
-  "success": true,
-  "code": "OK"
+  "success": true
 }
 
-// 失败 - 密钥错误
+// 400 Bad Request | 失败 - 缺少参数 / 参数类型错误
 {
-    "success": false,
-    "code": "not authorized",
-    "message": "invaild secret"
+  "success": false,
+  "code": 400,
+  "details": "Bad Request",
+  "message": "missing param or wrong param type: ..."
 }
 
-// 失败 - 缺少参数
+// 405 Method Not Allowed | 失败 - 请求方式错误
 {
-    "success": false,
-    "code": "bad request",
-    "message": "missing param"
+  "success": false,
+  "code": 405,
+  "details": "Method Not Allowed",
+  "message": "/api/device/set only supports GET and POST method!"
 }
 ```
 
-### device-remove
+### /api/device/remove
 
 [Back to ## device](#device)
 
-> `/device/remove?secret=<secret>&id=<device_id>`
+> `/api/device/remove?id=<device_id>`
 
 移除单个设备的状态
 
 * Method: GET
+* **需要鉴权**
 
 #### Params
 
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
 - `<device_id>`: 设备标识符
 
 #### Response
 
 ```jsonc
-// 成功
+// 200 OK | 成功
 {
-    "success": true,
-    "code": "OK"
+  "success": true
 }
 
-// 失败 - 不存在 (也不算失败了?)
+// 400 Bad Request | 失败 - 未提供设备 ID
 {
-    "success": false,
-    "code": "not found",
-    "message": "cannot find item"
-}
-
-// 失败 - 密钥错误
-{
-    "success": false,
-    "code": "not authorized",
-    "message": "invaild secret"
+  "success": false,
+  "code": 400,
+  "details": "Bad Request",
+  "message": "Missing device id!"
 }
 ```
 
-### device-clear
+### /api/device/clear
 
 [Back to ## device](#device)
 
-> `/device/clear?secret=<secret>`
+> `/api/device/clear`
 
 清除所有设备的状态
 
 * Method: GET
-
-#### Params
-
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
+* **需要鉴权**
 
 #### Response
 
 ```jsonc
-// 成功
+// 200 OK | 成功
 {
-    "success": true,
-    "code": "OK"
-}
-
-// 失败 - 密钥错误
-{
-    "success": false,
-    "code": "not authorized",
-    "message": "invaild secret"
+  "success": true
 }
 ```
 
-### device-private-mode
+### /api/device/private
 
 [Back to ## device](#device)
 
-> `/device/private_mode?secret=<secret>&private=<isprivate>`
+> `/api/device/private?private=<isprivate>`
 
-设置隐私模式 *(即在 [`/query`](#query) 的返回中设置 `device` 项为空 (`{}`))*
+设置隐私模式 *(即在 [`/api/status/query`](#apistatusquery) 的返回中设置 `device` 项为空 (`{}`))*
 
 * Method: GET
+* **需要鉴权**
 
 #### Params
 
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
-- `<isprivate>`: bool (仅接受 `true` / `false`), 开关状态
+- `<isprivate>`: bool, 开关状态
 
 #### Response
 
 ```jsonc
-// 成功
+// 200 OK | 成功
 {
-    "success": true,
-    "code": "OK"
+  "success": true
 }
 
-// 失败 - 密钥错误
+// 400 Bad Request | 失败 - 请求无效
 {
-    "success": false,
-    "code": "not authorized",
-    "message": "invaild secret"
-}
-
-// 失败 - 请求无效
-{
-    "success": false,
-    "code": "invaild request",
-    "message": "\"private\" arg only supports boolean type"
-}
-```
-
-## Storage
-
-[Back to # api](#api)
-
-|                                | 路径                             | 方法  | 作用                 |
-| ------------------------------ | -------------------------------- | ----- | -------------------- |
-| [Jump](#storage-reload-config) | `/reload_config?secret=<secret>` | `GET` | 重载配置             |
-| [Jump](#storage-save-data)     | `/save_data?secret=<secret>`     | `GET` | 保存内存中的状态信息 |
-
-### storage-reload-config
-
-[Back to ## storage](#storage)
-
-> `/reload_config?secret=<secret>`
-
-重新从 `config.jsonc` 加载配置
-
-* Method: GET
-
-#### Params
-
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
-
-#### Response
-
-```jsonc
-// 成功
-{
-    "success": true,
-    "code": "OK",
-}
-
-// 失败 - 密钥错误
-{
-    "success": false,
-    "code": "not authorized",
-    "message": "invaild secret"
-}
-```
-
-### storage-save-data
-
-[Back to ## storage](#storage)
-
-> `/save_data?secret=<secret>`
-
-保存内存中的状态信息到 `data.json`
-
-* Method: GET
-
-#### Params
-
-- `<secret>`: 在 `config.jsonc` 中配置的 `secret`
-
-#### Response
-
-```jsonc
-// 成功
-{
-    "success": true,
-    "code": "OK",
-    "data": { // data.json 内容
-        "status": 0,
-        "device_status": {},
-        "last_updated": "2024-12-21 13:58:38"
-    }
-}
-
-// 失败 - 密钥错误
-{
-    "success": false,
-    "code": "not authorized",
-    "message": "invaild secret"
-}
-
-// 失败 - 保存出错
-{
-    "success": false,
-    "code": "exception",
-    "message": "..." // 报错内容
+  "success": false,
+  "code": 400,
+  "details": "Bad Request",
+  "message": "'private' arg must be boolean"
 }
 ```

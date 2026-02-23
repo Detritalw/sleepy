@@ -1,144 +1,113 @@
 # sleepy
 
+> 欢迎来到 Sleepy Project 的主仓库!
+
 一个用于 ~~*视奸*~~ 查看个人在线状态 (以及正在使用软件) 的 Flask 应用，让他人能知道你不在而不是故意吊他/她
 
-[**功能**](#功能) / [**TODO**](#todo) / [演示](#preview) / [**部署**](#部署) / [**使用**](#使用) / [**关于**](#关于)
+[**功能**](#功能) / [**演示**](#preview) / [**部署**](#部署--更新) / [**服务端配置**](#服务器配置) / [**使用**](#使用) / [**Client**](#client) / [**API**](#api) / [**关于**](#关于)
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sleepy-project/sleepy)
 
 ## 功能
 
-- 自行设置在线状态
-- 实时更新设备打开应用 (名称)
-- 美观的展示页面 [见 [Preview](#preview)]
-
-### TODO
-
-- [x] **拆分 `config.jsonc` (只读) 和 `data.json`** (https://github.com/wyf9/sleepy/issues/3)
-- [x] 网页使用 api 请求，并实现定时刷新
-- [x] 设备使用状态
-- [x] Windows 客户端 (Python)
-- [x] Android 客户端 ([Autox.js](http://doc.autoxjs.com/))
-- [x] [查看更多客户端 (如浏览器脚本)](./client/README.md)
-- [x] Metrics API (统计页面访问 / 接口调用次数)
-- [ ] 设备状态 Heartbeat 机制
-- [ ] 更多状态存储选项 (如 SQLite)
+- [x] 自行设置在线状态 *(活着 / 似了 等, 也可 **[自定义](./setting/README.md#status_listjson)** 状态列表)*
+- [x] 实时更新设备使用状态 *(包括 是否正在使用 / 打开的应用名, 通过 **[client](./client/README.md)** 主动推送)*
+- [x] 美观的展示页面 [见 [Preview](#preview)]
+- [x] 开放的 Query / Metrics [接口](./doc/api.md), 方便统计
+- [x] 支持 HTTPS (需要自行配置 SSL 证书)
 
 > [!TIP]
-> **最新开发进度/ TODOs 见: [Discord Server](https://discord.gg/DyBY6gwkeg)** <br/>
-> 如有 Bug / 建议, 可 [issue](https://github.com/wyf9/sleepy/issues/new) 或 [More contact](https://wyf9.top/#/contact) *(注明来意)*.
+> 如有 Bug / 建议, 可发 issue (**[Bug][link-issue-bug]** / **[Feature][link-issue-feature]**) 或选择下面的联系方式 *(注明来意)*.
 
-对智能家居 / Home Assistant 感兴趣的朋友，一定要参观 WinMEMZ 的 [sleepy 重生版](https://maao.cc/project-sleepy/): [maoawa/project-sleepy](https://github.com/maoawa/project-sleepy)!
+### Working...
 
-<!-- > **以及 [开发分支 `dev-2025-2-1`](https://github.com/wyf9/sleepy/tree/dev-2025-2-1)** <br/> -->
+我们正在使用 FastAPI 重构此项目, 请关注以下社交平台消息:
+
+- [Discord][link-dc]
+- [QQ][link-qq]
+- [Telegram][link-tg]
+
+预计将在 1-2 个月内完成 *(希望吧)*
+
+如仍需使用此分支, 请仔细阅读本仓库的文档, 或找上面的 DeepWiki Ask.
+
+> [!TIP]
+> 以及 V4 API (即不带 `/api` 前缀的 API) 兼容**默认启用**, **文档: [`plugins/v4_compatible/README.md`](./plugins/v4_compatible/README.md)**
 
 ### Preview
 
-演示站 (*较*稳定): [sleepy.wyf9.top](https://sleepy.wyf9.top)
+演示站: [sleepy.wyf9.top](https://sleepy.wyf9.top)
 
-开发预览 (*不保证可用*, 密钥 `wyf9test`): [sleepy-preview.wyf9.top](https://sleepy-preview.wyf9.top)
-
-> 区别: 演示站为 wyf9 个人站点; 预览站允许测试 API，且直接运行开发版本
-
-> [!WARNING]
-> 不要拿演示站做坏事 (比如 js 注入)，已由 DeepSeek 强力修复 ~~，没准哪天我会加访问日志~~
-
-## 部署
-
-理论上全平台通用, 安装了 Python >= **3.6** 即可 (建议: **3.10+**)
-
-1. Clone 本仓库 (建议先 Fork / Use this template)
-
-```shell
-git clone https://github.com/wyf9/sleepy.git
-```
-
-2. 安装依赖
-
-```shell
-pip install flask pytz
-```
-
-3. 编辑配置文件
-
-先启动一遍程序:
-
-```shell
-python3 server.py
-```
-
-如果不出意外，会提示: `config.jsonc not exist, creating`，同时目录下出现 `config.jsonc` 文件，编辑该文件中的配置后重新运行即可
-
-`>>` **[配置示例](./config.example.jsonc)** `<<` *(`config.jsonc` 从此复制)*
-
-
-## 使用
-
-> [!IMPORTANT]
-> **使用宝塔面板 (uwsgi) 等部署时，请确定只为本程序分配了 1 个进程, 如设置多个服务进程可能导致数据不同步!!!**
-
-有两种启动方式:
-
-```shell
-# 直接启动
-python3 server.py
-# 简易启动器
-python3 start.py
-```
-
-默认服务 http 端口: **`9010`** *(可在 `config.jsonc` 中修改)*
-
-### 我承认你的代码写的确实很nb，但对我来说还是太吃操作了
-
-> [@kmizmal](https://github.com/kmizmal) 的胡言乱语
+**开放预览站**: [sleepy-preview.wyf9.top](https://sleepy-preview.wyf9.top)
 
 <details>
 
-***<summary>点!此!展!开! (大图警告)</summary>***
+<summary>展开更多</summary>
 
-有没有更简单无脑的方法推荐一下  
-**有的兄弟，有的！**
-这样的方法有很多个，各个都是`GitHub` T<sub>0.5</sub>的操作  
-我怕教太多了你学不会，现在只要点  
-[这里](https://huggingface.co/spaces/shegy/m/blob/main/config.example.jsonc?duplicate=true&visibility=public)  
-然后自己去注册一个账号
-然后这样
-![链接](https://files.catbox.moe/svvdt6.png)
-就可以复制你的`URL`了，
-配置文件在这里
-![配置](https://files.catbox.moe/xz5sd8.png)
-按照文档改好自动重启就能用了  
-不想把`secret`明文写在这里可以去 *Settings->Variables and secrets->New secret* 新建一个`SLEEPY_SECRET`变量存放`secret`  
+**HuggingFace** 部署预览: [wyf9-sleepy.hf.space](https://wyf9-sleepy.hf.space)
+
+**Vercel** 部署预览: [sleepy-vercel.wyf9.top](https://sleepy-vercel.wyf9.top)
+
+**开发服务器**: [请在 Discord 服务器查看][link-dc]
+
 </details>
 
-## 客户端示例
+## 部署 / 更新
 
-如果你想直接开始使用，可在 **[`/client`](./client/README.md)** 找到客户端 (用于**手动更新状态**/**自动更新设备打开应用**)
+请移步 **[部署教程](./doc/deploy.md)** 或 **[更新教程](./doc/update.md)** *(多图警告)*
+
+## 客户端
+
+搭建完服务端后，你可在 **[`/client`](./client/README.md)** 找到客户端 (用于**手动更新状态**/**自动更新设备打开应用**)
+
+*目前已有 [Windows](./client/README.md#windevice), [Linux](./client/README.md#linux), [IOS / MacOS](./client/README.md#iosmacos), [Android](./client/README.md#autoxjsscript), [油猴脚本](./client/README.md#browserscript) 等客户端*
+
+> [!IMPORTANT]
+> 每个客户端的标题可以 **点击跳转最新文件**, 不要使用固定 commit 的链接, 否则无法获取最新文件
 
 ## API
 
 详细的 API 文档见 [doc/api.md](./doc/api.md).
 
-## 优化站点
+<!-- ## 插件系统
 
-见 [Best Practice](./doc/best_practice.md)
+(普通用户看这个) **[doc/plugin.md](./doc/plugin.md)**
 
-## 更新
+(插件开发看这个) **[doc/plugin-dev/README.md](./doc/plugin-dev/README.md)** -->
 
-只需 **4** 步:
-
-1. 使用 `git pull` 拉取最新代码 (注意查看所在分支是否存在)
-2. 启动服务 (应提示 `Config fotmat updated, please change your config.jsonc` 并退出)
-3. 对照 [`config.example.jsonc`](./config.example.jsonc) 和 [`doc/config_update.md`](./doc/config_update.md) 编辑你的 `config.jsonc`，并将 `version` 字段改为最新版本
-4. 再次启动服务，更新完成.
-> Huggingface
->>对照 [`config.example.jsonc`](./config.example.jsonc) 和 [`doc/config_update.md`](./doc/config_update.md) 编辑Files下的 `config.example.jsonc`，并将 `version` 字段改为最新版本
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wyf9/sleepy&type=Date)](https://star-history.com/#wyf9/sleepy&Date)
+[![Star History Chart (如无法加载图片可点击查看)](https://api.star-history.com/svg?repos=sleepy-project/sleepy&type=Date)](https://star-history.com/#sleepy-project/sleepy&Date)
+
+## 贡献者
+
+> [!WARNING]
+> 在提交代码前, 请先查阅 **[贡献准则](https://github.com/sleepy-project/.github/blob/main/CODE_OF_CONDUCT.md)** 和 **[贡献指南](./CONTRIBUTING.md)**
+
+*因为权限问题, 我把贡献者名单 actions 扬了, 请 **[在此](https://github.com/sleepy-project/sleepy/graphs/contributors)** 查看*
 
 ## 关于
 
-本项目灵感由 Bilibili UP [@WinMEMZ](https://space.bilibili.com/417031122) 而来: [site](https://maao.cc/sleepy/) / [blog](https://www.maodream.com/archives/192/), 并~~部分借鉴~~使用了前端代码, 在此十分感谢。
+非常感谢 **ZMTO** *(原名 VTEXS)* 的 **「开源项目免费 VPS 计划」** 对项目提供的算力支持！
 
-也欢迎参观 WinMEMZ *(GitHub: [maoawa](https://github.com/maoawa))* 的原版！~~[maoawa/sleepy](https://github.com/maoawa/sleepy)~~ *已归档*
+> **[Link](https://console.zmto.com/?affid=1566)** *(使用此链接获得 10% 优惠)* <!-- 谁都不许改 affid -->
 
-感谢 [@1812z](https://github.com/1812z) 的 B 站视频推广~ ([BV1LjB9YjEi3](https://www.bilibili.com/video/BV1LjB9YjEi3))
+---
+
+本项目灵感由 Bilibili UP [@WinMEMZ](https://space.bilibili.com/417031122) 而来: **[site](https://maao.cc/sleepy/)** / **[blog](https://www.maodream.com/archives/192/)** / **[repo: `maoawa/sleepy`](https://github.com/maoawa/sleepy)**, 并~~部分借鉴~~使用了前端代码, 在此十分感谢。
+
+[`templates/steam-iframe.html`](./templates/steam-iframe.html) 来自 repo **[gamer2810/steam-miniprofile](https://github.com/gamer2810/steam-miniprofile).**
+
+---
+
+对智能家居 / Home Assistant 感兴趣的朋友，一定要看看 WinMEMZ 的 [sleepy 重生版](https://maao.cc/project-sleepy/): **[maoawa/project-sleepy](https://github.com/maoawa/project-sleepy)!**
+
+感谢 [@1812z](https://github.com/1812z) 的 B 站视频推广~ **([BV1LjB9YjEi3](https://www.bilibili.com/video/BV1LjB9YjEi3))**
+
+---
+
+[link-dc]: https://sleepy.wss.moe/dc
+[link-tg]: https://sleepy.wss.moe/tgc
+[link-qq]: https://sleepy.wss.moe/qq
+[link-issue-bug]: https://sleepy.wss.moe/bug
+[link-issue-feature]: https://sleepy.wss.moe/feature

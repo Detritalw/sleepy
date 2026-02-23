@@ -1,48 +1,98 @@
 # coding: utf-8
-
 import os
-import shutil
+from logging import getLogger
+
+from dotenv import load_dotenv
+from yaml import safe_load as yaml_load
+from toml import load as toml_load
+from json import load as json_load, loads as json_loads, JSONDecodeError
+
 import utils as u
-from jsonc_parser.parser import JsoncParser
+from models import ConfigModel, env_vaildate_json_keys
+from pydantic import ValidationError
+
+l = getLogger(__name__)
 
 
-class config:
+class Config:
     '''
-    config 类, 负责配置调用
-    可用 `.config['xxx']` 直接调取数据 (加载后)
+    用户配置
     '''
-    config: dict
+
+    config: ConfigModel
 
     def __init__(self):
-        jsonData = JsoncParser.parse_file('config.example.jsonc', encoding='utf-8')
-        if not os.path.exists('config.jsonc'):
-            u.warning('config.jsonc not exist, creating')
-            try:
-                shutil.copy('config.example.jsonc', 'config.jsonc')
-                u.exception('Generated new config file (config.jsonc), please edit it and re-run this program.')
-            except Exception as e:
-                u.error(f'Create config.jsonc failed: {e}')
-                raise
-        self.load()
-        if self.config['version'] != jsonData['version']:
-            u.exception(f'Config fotmat updated ({self.config["version"]} -> {jsonData["version"]}), please change your config.jsonc\nSee: config.example.json and doc/config_update.md')
+        perf = u.perf_counter()  # 性能计数器
 
-    def load(self):
-        '''
-        加载配置
-        '''
+        # ===== prepare .env =====
+        load_dotenv(dotenv_path=u.get_path('data/.env'))
+        config_env = {}
         try:
-            self.config = JsoncParser.parse_file('config.jsonc', encoding='utf-8')
+            # 筛选有效配置项
+            vaild_kvs: dict[str, str] = {}
+            for k_, v in os.environ.items():
+                k = k_.lower()
+                if k.startswith('sleepy_'):
+                    vaild_kvs[k[7:]] = v
+            # 生成字典
+            for k, v in vaild_kvs.items():
+                if k in env_vaildate_json_keys:
+                    try:
+                        v = json_loads(v)
+                    except JSONDecodeError:
+                        pass
+                klst = k.split('_')
+                config_env = u.deep_merge_dict(config_env, u.process_env_split(klst, v))
         except Exception as e:
-            u.error(f'Error loading config.jsonc: {e}')
-            raise
+            l.warning(f'Error when loading environment variables: {e}')
 
-    def get(self, name):
-        '''
-        读取一个值
-        '''
+        # ===== prepare config.yaml =====
+        config_yaml = {}
         try:
-            gotdata = self.config[name]
-        except:
-            gotdata = None
-        return gotdata
+            if os.path.exists(u.get_path('data/config.yaml')):
+                with open(u.get_path('data/config.yaml'), 'r', encoding='utf-8') as f:
+                    config_yaml = yaml_load(f)
+                    f.close()
+        except Exception as e:
+            l.warning(f'Error when loading data/config.yaml: {e}')
+
+        # ===== prepare config.toml =====
+        config_toml = {}
+        try:
+            if os.path.exists(u.get_path('data/config.toml')):
+                with open(u.get_path('data/config.toml'), 'r', encoding='utf-8') as f:
+                    config_toml = toml_load(f)
+                    f.close()
+        except Exception as e:
+            l.warning(f'Error when loading data/config.toml: {e}')
+
+        # ===== prepare config.json =====
+        config_json = {}
+        try:
+            if os.path.exists(u.get_path('data/config.json')):
+                with open(u.get_path('data/config.json'), 'r', encoding='utf-8') as f:
+                    config_json = json_load(f)
+                    f.close()
+        except Exception as e:
+            l.warning(f'Error when loading data/config.json: {e}')
+
+        # ===== mix sources =====
+        try:
+            self.config = ConfigModel(**u.deep_merge_dict(config_env, config_yaml, config_toml, config_json))
+        except ValidationError as e:
+            raise u.SleepyException(f'Invaild config!\n{e}')
+
+        # ===== optimize =====
+        # status_list 中自动补全 id
+        for i in range(len(self.config.status.status_list)):
+            self.config.status.status_list[i].id = i
+
+        # metrics_list 中 [static] 处理
+        if '[static]' in self.config.metrics.allow_list:
+            self.config.metrics.allow_list.remove('[static]')
+            static_list = u.list_dirs(u.get_path('static/'))
+            self.config.metrics.allow_list.extend(['/static/' + i for i in static_list])
+
+        if self.config.main.debug:
+            # *此处还未设置日志等级, 需手动判断*
+            l.debug(f'[config] init took {perf()}ms')
